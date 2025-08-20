@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strings"
 )
 
 func getLinesChannel(conn io.ReadCloser) <-chan string {
@@ -61,6 +62,12 @@ func main() {
 	if err != nil {
 		log.Fatal("error", err)
 	}
+
+	trialStr := "GET /cookie http/1.1"
+
+	parts := strings.SplitN(trialStr, " ", 3)
+
+	fmt.Println(parts)
 
 	for {
 		connection, err := listener.Accept()
