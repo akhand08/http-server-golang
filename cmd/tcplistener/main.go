@@ -1,60 +1,59 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"strings"
+
+	"github.com/akhand08/http-server-golang/internal/request"
 )
 
-func getLinesChannel(conn io.ReadCloser) <-chan string {
-	out := make(chan string, 1)
+// func getLinesChannel(conn io.ReadCloser) <-chan string {
+// 	out := make(chan string, 1)
 
-	go func() {
+// 	go func() {
 
-		defer conn.Close()
-		defer close(out)
+// 		defer conn.Close()
+// 		defer close(out)
 
-		str := ""
+// 		str := ""
 
-		for {
-			data := make([]byte, 8)
+// 		for {
+// 			data := make([]byte, 8)
 
-			n, err := conn.Read(data)
+// 			n, err := conn.Read(data)
 
-			if err != nil {
+// 			if err != nil {
 
-				if err != io.EOF {
-					log.Fatal("error: ", err)
-				}
+// 				if err != io.EOF {
+// 					log.Fatal("error: ", err)
+// 				}
 
-				break
-			}
+// 				break
+// 			}
 
-			data = data[:n]
-			if newLineIndex := bytes.IndexByte(data, '\n'); newLineIndex != -1 {
-				str += string(data[:newLineIndex])
-				// fmt.Printf("read: %s\n", str)
-				data = data[newLineIndex+1:]
-				out <- str
-				str = ""
+// 			data = data[:n]
+// 			if newLineIndex := bytes.IndexByte(data, '\n'); newLineIndex != -1 {
+// 				str += string(data[:newLineIndex])
+// 				// fmt.Printf("read: %s\n", str)
+// 				data = data[newLineIndex+1:]
+// 				out <- str
+// 				str = ""
 
-			}
+// 			}
 
-			str += string(data)
+// 			str += string(data)
 
-		}
+// 		}
 
-		if len(str) != 0 {
-			out <- str
-		}
+// 		if len(str) != 0 {
+// 			out <- str
+// 		}
 
-	}()
+// 	}()
 
-	return out
-}
+// 	return out
+// }
 
 func main() {
 
@@ -63,26 +62,24 @@ func main() {
 		log.Fatal("error", err)
 	}
 
-	trialStr := "GET /cookie http/1.1"
-
-	parts := strings.SplitN(trialStr, " ", 3)
-
-	fmt.Println(parts)
-
 	for {
 		connection, err := listener.Accept()
 
 		if err != nil {
-			log.Fatal("error", err)
+			log.Fatal("error in accepting the connection: ", err)
 		}
 
-		for line := range getLinesChannel(connection) {
+		httpRequest, err := request.RequestFromReader(connection)
 
-			fmt.Printf("%s\n", line)
-			// fmt.Printf("%T\n", line)
-			// fmt.Println(string(line[0]), " --> ", line[1], " ---> ", line[2])
-
+		if err != nil {
+			log.Fatal("Error in receiving the http request: ", err)
 		}
+
+		// Printing the Request Line
+		fmt.Println("Request Line - ")
+		fmt.Println("Method: ", httpRequest.RequestLine.Method)
+		fmt.Println("Targer: ", httpRequest.RequestLine.RequestTarget)
+		fmt.Println("Method: ", httpRequest.RequestLine.HttpVersion)
 	}
 
 	// lines := getLinesChannel(file)
