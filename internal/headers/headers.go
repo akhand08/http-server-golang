@@ -54,7 +54,11 @@ func (h Headers) mapper(data []byte) error {
 	}
 	value = strings.TrimSpace(value)
 
-	h[key] = value
+	if _, exist := h[key]; exist == true {
+		h[key] = h[key] + ", " + value
+	} else {
+		h[key] = value
+	}
 
 	return nil
 

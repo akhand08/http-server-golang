@@ -44,5 +44,8 @@ func TestHeadersParse(t *testing.T) {
 	assert.Equal(t, "localhost:42069", headers["host"])
 	assert.Equal(t, 23, n)
 	assert.False(t, done)
+	data = []byte("Host: myserver:42069\r\n\r\n")
+	n, done, err = headers.Parse(data)
+	assert.Equal(t, "localhost:42069, myserver:42069", headers["host"])
 
 }
