@@ -78,7 +78,7 @@ func main() {
 		// Printing the Request Line
 		fmt.Println("Request Line - ")
 		fmt.Println("Method: ", httpRequest.RequestLine.Method)
-		fmt.Println("Targer: ", httpRequest.RequestLine.RequestTarget)
+		fmt.Println("Target: ", httpRequest.RequestLine.RequestTarget)
 		fmt.Println("Method: ", httpRequest.RequestLine.HttpVersion)
 	}
 
