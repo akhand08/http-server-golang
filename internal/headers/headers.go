@@ -48,17 +48,58 @@ func (h Headers) mapper(data []byte) error {
 	key := parts[0]
 	value := parts[1]
 
-	keyLen := len(key)
-
-	if key[keyLen-1] == ' ' {
-		return errors.New("Invalid key")
+	key, err := keyValidators(key)
+	if err != nil {
+		return err
 	}
-
-	key = strings.TrimSpace(key)
 	value = strings.TrimSpace(value)
 
 	h[key] = value
 
 	return nil
 
+}
+
+func keyValidators(key string) (string, error) {
+	keyLen := len(key)
+	if keyLen < 1 {
+		return "", errors.New("Invalid header key length")
+	}
+
+	if key[keyLen-1] == ' ' {
+		return "", errors.New("Invalid key")
+	}
+
+	key = strings.TrimSpace(key)
+
+	for i := 0; i < keyLen; i++ {
+
+		if int(key[i]) >= 48 && int(key[i]) <= 57 {
+			continue
+		}
+
+		if int(key[i]) >= 65 && int(key[i]) <= 90 {
+			continue
+		}
+
+		if int(key[i]) >= 97 && int(key[i]) <= 123 {
+			continue
+		}
+
+		if key[i] == '!' || key[i] == '#' || key[i] == '$' || key[i] == '%' ||
+			key[i] == '&' || key[i] == '\'' || key[i] == '*' || key[i] == '+' ||
+			key[i] == '-' || key[i] == '.' || key[i] == '^' || key[i] == '_' ||
+			key[i] == '`' || key[i] == '|' || key[i] == '~' {
+
+			continue
+
+		}
+
+		return "", errors.New("Invalid character in header field name")
+
+	}
+
+	key = strings.ToLower(key)
+
+	return key, nil
 }
