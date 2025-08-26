@@ -37,15 +37,15 @@ func TestHeadersParse(t *testing.T) {
 
 	// Test:
 	headers = NewHeaders()
-	data = []byte("Host: localhost:42069\r\n\r\n")
+	data = []byte("User-Agent: curl/7.81.0\r\n\r\n")
 	n, done, err = headers.Parse(data)
 	require.NoError(t, err)
 	require.NotNil(t, headers)
-	assert.Equal(t, "localhost:42069", headers["host"])
-	assert.Equal(t, 23, n)
+	assert.Equal(t, "curl/7.81.0", headers["user-agent"])
+	assert.Equal(t, 25, n)
 	assert.False(t, done)
 	data = []byte("Host: myserver:42069\r\n\r\n")
 	n, done, err = headers.Parse(data)
-	assert.Equal(t, "localhost:42069, myserver:42069", headers["host"])
+	assert.Equal(t, "myserver:42069", headers["host"])
 
 }

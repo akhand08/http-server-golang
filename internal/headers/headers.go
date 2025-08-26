@@ -60,6 +60,8 @@ func (h Headers) mapper(data []byte) error {
 		h[key] = value
 	}
 
+	// fmt.Println("key: ", key, "value: ", value)
+
 	return nil
 
 }
