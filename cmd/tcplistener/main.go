@@ -80,6 +80,10 @@ func main() {
 		fmt.Println("Method: ", httpRequest.RequestLine.Method)
 		fmt.Println("Target: ", httpRequest.RequestLine.RequestTarget)
 		fmt.Println("Method: ", httpRequest.RequestLine.HttpVersion)
+		fmt.Println("Headers: ")
+		for key, value := range httpRequest.RequestHeader {
+			fmt.Println(key, "--> ", value)
+		}
 	}
 
 	// lines := getLinesChannel(file)

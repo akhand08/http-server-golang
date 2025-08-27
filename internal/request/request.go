@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -22,11 +23,14 @@ const (
 	ParsingHeader
 	ParsingHeaderDone
 	ParsingBody
+	ParsingBodyDone
+	ParsingComplete
 )
 
 type Request struct {
 	RequestLine   RequestLine
 	RequestHeader headers.Headers
+	RequestBody   []byte
 	State         State
 }
 
@@ -76,6 +80,34 @@ func (r *Request) parse(buffer []byte) (n int, err error) {
 		}
 
 		return byteConsumed, nil
+	case ParsingBody:
+
+		if r.State == ParsingBody {
+			num, err := strconv.Atoi(r.RequestHeader["content-length"])
+			if err != nil {
+				return 0, err
+			}
+
+			if num == 0 {
+				r.State += 2
+			}
+			return 0, nil
+		}
+
+	case ParsingBodyDone:
+
+		r.RequestBody = append(r.RequestBody, buffer...)
+		bodyLen := len(r.RequestBody)
+		contentLen, err := strconv.Atoi(r.RequestHeader["content-length"])
+		if err != nil {
+			return 0, err
+		}
+
+		if bodyLen != contentLen {
+			return 0, errors.New("Invalid length of the request body")
+		}
+
+		return bodyLen, nil
 
 	}
 
@@ -91,7 +123,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	newHeader := headers.NewHeaders()
 	newRequest.RequestHeader = newHeader
 
-	for newRequest.State != ParsingBody {
+	for newRequest.State != ParsingComplete {
 
 		chunk := make([]byte, 8)
 
@@ -99,16 +131,20 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 
 		if err != nil {
 
-			if err == io.EOF {
+			if newRequest.State == ParsingBody && n == 0 && err == io.EOF {
+				newRequest.State += 1
+			} else if n == 0 && err == io.EOF {
 				return newRequest, nil
+			} else if err != io.EOF {
+				return nil, err
 			}
-			return nil, err
+
 		}
 
 		copy(buffer[readToIndex:], chunk)
 		readToIndex += n
 
-		consumed, err := newRequest.parse(buffer)
+		consumed, err := newRequest.parse(buffer[:readToIndex])
 
 		if err != nil {
 			return nil, err
