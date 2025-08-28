@@ -84,6 +84,10 @@ func main() {
 		for key, value := range httpRequest.RequestHeader {
 			fmt.Println(key, "--> ", value)
 		}
+
+		fmt.Println("Body: ")
+		fmt.Println(string(httpRequest.RequestBody))
+
 	}
 
 	// lines := getLinesChannel(file)
