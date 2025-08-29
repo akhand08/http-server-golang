@@ -5,6 +5,8 @@ import (
 	"net"
 	"strconv"
 	"sync/atomic"
+
+	"github.com/akhand08/http-server-golang/internal/response"
 )
 
 type Server struct {
@@ -68,12 +70,32 @@ func (s *Server) handleConn(connection net.Conn) {
 		return
 	}
 
-	response := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello World!")
+	responseBody := []byte("Hello World\r\n")
+	bodyLen := len(responseBody)
 
-	_, err = connection.Write(response)
+	// response := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello World!")
+
+	responseHeader := response.GetDefaultHeaders(bodyLen)
+
+	// sending the status line
+
+	err = response.WriteStatusLine(connection, "200")
 
 	if err != nil {
-		log.Printf("Error at writing: %v", err)
+		log.Printf("Error at sending status line: %v", err)
+		return
+
+	}
+
+	err = response.WriteHeaders(connection, responseHeader)
+
+	if err != nil {
+		log.Printf("Error at writing header: %v", err)
+	}
+
+	_, err = connection.Write(responseBody)
+	if err != nil {
+		log.Printf("Error at writing body: %v", err)
 	}
 
 }
