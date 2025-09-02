@@ -86,7 +86,6 @@ func (r *Request) parse(buffer []byte) (n int, err error) {
 		if isEnd == true {
 
 			_, exist := r.RequestHeader["content-length"]
-			fmt.Println("Result of exist:  ", exist)
 
 			if exist == false {
 				r.State = ParsingComplete

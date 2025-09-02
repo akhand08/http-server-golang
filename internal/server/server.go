@@ -83,8 +83,6 @@ func (s *Server) handleConn(connection net.Conn) {
 	var responseBody bytes.Buffer
 
 	handlerError := s.handler(&responseBody, httpRequest)
-	fmt.Println("Response Body: ", responseBody)
-	fmt.Println(handlerError)
 
 	if handlerError != nil {
 
@@ -99,7 +97,6 @@ func (s *Server) handleConn(connection net.Conn) {
 func (s *Server) ResponseWriter(w io.Writer, responseBody *bytes.Buffer) {
 
 	bodyLen := len(responseBody.Bytes())
-	fmt.Println(bodyLen)
 
 	responseHeaders := response.GetDefaultHeaders(bodyLen)
 	err := response.WriteStatusLine(w, response.Ok)
@@ -131,15 +128,15 @@ func (s *Server) ResponseWriter(w io.Writer, responseBody *bytes.Buffer) {
 
 }
 
-func (s *Server) writeError(conn net.Conn, error *HandlerError) {
-
-	statusCode := error.StatusCode
-	reasonPhrase := error.Message
+func (s *Server) writeError(conn net.Conn, handlerErr *HandlerError) {
+	statusCode := handlerErr.StatusCode
+	reasonPhrase := handlerErr.Message
 
 	response := fmt.Sprintf(
 		"HTTP/1.1 %s %s\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
 		statusCode, reasonPhrase,
 	)
+
 	_, err := conn.Write([]byte(response))
 	if err != nil {
 		log.Printf("Failed writing error response: %v", err)
