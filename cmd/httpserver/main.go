@@ -6,13 +6,14 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/akhand08/http-server-golang/internal/handlers"
 	"github.com/akhand08/http-server-golang/internal/server"
 )
 
 const port = 42069
 
 func main() {
-	server, err := server.Serve(port)
+	server, err := server.Serve(port, handlers.RootHandler)
 	if err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}

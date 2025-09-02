@@ -3,6 +3,7 @@ package request
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -23,7 +24,6 @@ const (
 	ParsingHeader
 	ParsingHeaderDone
 	ParsingBody
-	ParsingBodyDone
 	ParsingComplete
 )
 
@@ -64,52 +64,86 @@ func (r *Request) parse(buffer []byte) (n int, err error) {
 		r.State += 1
 		return 0, nil
 	case ParsingHeaderDone:
+
+		// if contentLen == 0 {
+		// 	r.State += 2
+		// 	return 0, nil
+		// }
+
 		r.State -= 1
 		return 0, nil
 	case ParsingHeader:
 
 		byteConsumed, isEnd, err := r.RequestHeader.Parse(buffer)
+		// fmt.Println(buffer)
+		// fmt.Println("isEnd : ", isEnd)
+		// fmt.Println(r)
 
 		if err != nil {
 			return 0, err
 		}
 
 		if isEnd == true {
-			r.State += 1
+
+			_, exist := r.RequestHeader["content-length"]
+			fmt.Println("Result of exist:  ", exist)
+
+			if exist == false {
+				r.State = ParsingComplete
+				return 0, nil
+			}
+
+			contentLen, err := strconv.Atoi(r.RequestHeader["content-length"])
+			if err != nil {
+				return 0, err
+			}
+
+			if contentLen == 0 {
+				r.State += 3
+				return 0, nil
+			}
+
+			r.State += 2
 			return 2, nil
 		}
 
 		return byteConsumed, nil
 	case ParsingBody:
 
-		if r.State == ParsingBody {
-			num, err := strconv.Atoi(r.RequestHeader["content-length"])
-			if err != nil {
-				return 0, err
-			}
-
-			if num == 0 {
-				r.State += 2
-			}
-			return 0, nil
-		}
-
-	case ParsingBodyDone:
-
-		r.RequestBody = append(r.RequestBody, buffer...)
-		bodyLen := len(r.RequestBody)
 		contentLen, err := strconv.Atoi(r.RequestHeader["content-length"])
 		if err != nil {
 			return 0, err
 		}
 
-		if bodyLen != contentLen {
-			return 0, errors.New("Invalid length of the request body")
+		currentBuffer := string(buffer)
+		bufferLen := len(currentBuffer)
+
+		if bufferLen == contentLen {
+			r.RequestBody = append(r.RequestBody, buffer...)
+			r.State += 1
+			return 0, nil
 		}
 
-		return bodyLen, nil
+		return 0, nil
+
+		// case ParsingBodyDone:
+
+		// 	r.RequestBody = append(r.RequestBody, buffer...)
+		// 	bodyLen := len(r.RequestBody)
+		// 	contentLen, err := strconv.Atoi(r.RequestHeader["content-length"])
+		// 	if err != nil {
+		// 		return 0, err
+		// 	}
+
+		// 	if bodyLen != contentLen {
+		// 		return 0, errors.New("Invalid length of the request body")
+		// 	}
+
+		// 	return 0, io.EOF
 
 	}
+
+	fmt.Println(r)
 
 	return 0, errors.New("Failed to Parsing")
 
@@ -132,7 +166,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		if err != nil {
 
 			if newRequest.State == ParsingBody && n == 0 && err == io.EOF {
-				newRequest.State += 1
+				return nil, errors.New("Invalid Length of RequestBody")
 			} else if n == 0 && err == io.EOF {
 				return newRequest, nil
 			} else if err != io.EOF {
@@ -142,17 +176,27 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 		}
 
 		copy(buffer[readToIndex:], chunk)
+
 		readToIndex += n
 
 		consumed, err := newRequest.parse(buffer[:readToIndex])
 
 		if err != nil {
+
+			// if err == io.EOF {
+			// 	newRequest.State += 1
+			// } else {
+			// 	return nil, err
+			// }
+
 			return nil, err
 		}
 
 		if consumed > 0 {
+			// readToIndex -= consumed
+			// buffer = buffer[consumed:]
+			copy(buffer, buffer[consumed:readToIndex])
 			readToIndex -= consumed
-			buffer = buffer[consumed:]
 
 			newRequest.State = newRequest.State + 1 // moving to the next stage
 		}

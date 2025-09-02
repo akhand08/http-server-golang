@@ -7,6 +7,7 @@ import (
 )
 
 const CRLF = "\r\n"
+const DoubleCRLF = "\r\n\r\n"
 
 type Headers map[string]string
 
@@ -17,6 +18,18 @@ func NewHeaders() Headers {
 func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 
 	newLineIndex := 0
+
+	if newLineIndex = bytes.Index(data, []byte(DoubleCRLF)); newLineIndex != -1 {
+
+		err = h.mapper(data[:newLineIndex])
+
+		if err != nil {
+			return 0, false, err
+		}
+
+		return newLineIndex + 4, true, nil
+
+	}
 
 	if newLineIndex = bytes.Index(data, []byte(CRLF)); newLineIndex == -1 {
 		return 0, false, nil

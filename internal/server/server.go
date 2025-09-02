@@ -1,20 +1,32 @@
 package server
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"log"
 	"net"
 	"strconv"
 	"sync/atomic"
 
+	"github.com/akhand08/http-server-golang/internal/request"
 	"github.com/akhand08/http-server-golang/internal/response"
 )
+
+type Handler func(w io.Writer, req *request.Request) *HandlerError
+
+type HandlerError struct {
+	StatusCode string
+	Message    string
+}
 
 type Server struct {
 	listener  net.Listener
 	isRunning atomic.Bool
+	handler   Handler
 }
 
-func Serve(port int) (*Server, error) {
+func Serve(port int, handler Handler) (*Server, error) {
 
 	listenAt := ":" + strconv.Itoa(port)
 
@@ -24,7 +36,7 @@ func Serve(port int) (*Server, error) {
 		return nil, err
 	}
 
-	server := &Server{listener: listener}
+	server := &Server{listener: listener, handler: handler}
 	server.isRunning.Store(true)
 	go server.listen()
 
@@ -62,24 +74,35 @@ func (s *Server) handleConn(connection net.Conn) {
 
 	defer connection.Close()
 
-	// Create a buffer to read the request
-	buffer := make([]byte, 1024)
-	_, err := connection.Read(buffer)
+	httpRequest, err := request.RequestFromReader(connection)
 	if err != nil {
 		log.Printf("Error reading request: %v", err)
 		return
 	}
 
-	responseBody := []byte("Hello World\r\n")
-	bodyLen := len(responseBody)
+	var responseBody bytes.Buffer
 
-	// response := []byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello World!")
+	handlerError := s.handler(&responseBody, httpRequest)
+	fmt.Println("Response Body: ", responseBody)
+	fmt.Println(handlerError)
 
-	responseHeader := response.GetDefaultHeaders(bodyLen)
+	if handlerError != nil {
 
-	// sending the status line
+		s.writeError(connection, handlerError)
 
-	err = response.WriteStatusLine(connection, "200")
+	} else {
+		s.ResponseWriter(connection, &responseBody)
+	}
+
+}
+
+func (s *Server) ResponseWriter(w io.Writer, responseBody *bytes.Buffer) {
+
+	bodyLen := len(responseBody.Bytes())
+	fmt.Println(bodyLen)
+
+	responseHeaders := response.GetDefaultHeaders(bodyLen)
+	err := response.WriteStatusLine(w, response.Ok)
 
 	if err != nil {
 		log.Printf("Error at sending status line: %v", err)
@@ -87,15 +110,38 @@ func (s *Server) handleConn(connection net.Conn) {
 
 	}
 
-	err = response.WriteHeaders(connection, responseHeader)
+	err = response.WriteHeaders(w, responseHeaders)
 
 	if err != nil {
 		log.Printf("Error at writing header: %v", err)
+		return
 	}
 
-	_, err = connection.Write(responseBody)
+	_, err = w.Write([]byte("\r\n"))
+	if err != nil {
+		log.Printf("Error at writing empty line: %v", err)
+		return
+	}
+
+	_, err = w.Write(responseBody.Bytes())
 	if err != nil {
 		log.Printf("Error at writing body: %v", err)
+		return
 	}
 
+}
+
+func (s *Server) writeError(conn net.Conn, error *HandlerError) {
+
+	statusCode := error.StatusCode
+	reasonPhrase := error.Message
+
+	response := fmt.Sprintf(
+		"HTTP/1.1 %s %s\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+		statusCode, reasonPhrase,
+	)
+	_, err := conn.Write([]byte(response))
+	if err != nil {
+		log.Printf("Failed writing error response: %v", err)
+	}
 }
